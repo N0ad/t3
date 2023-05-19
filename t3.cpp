@@ -80,6 +80,7 @@ int main(int argc, char *argv[]) {
     #ifdef NVPROF_
     nvtxRangePush("MainCycle");
     #endif
+    int o = 0;
     while ((err > max_err) && (iterations < max_iterations))
     {
         iterations++;
@@ -100,24 +101,28 @@ int main(int argc, char *argv[]) {
             acc_attach((void**)na);
         #endif
 
-        #pragma acc data present(inter[:size_arr * size_arr], new_arr[:size_arr * size_arr], arr[:size_arr * size_arr]) async
-        {
-        #pragma acc host_data use_device(new_arr, arr, inter)
+        if (o % 100 == 0){
+            #pragma acc data present(inter[:size_arr * size_arr], new_arr[:size_arr * size_arr], arr[:size_arr * size_arr]) async
             {
+            #pragma acc host_data use_device(new_arr, arr, inter)
+                {
 
-                status = cublasDcopy(handle, size_arr * size_arr, arr, 1, inter, 1);
-                if(status != CUBLAS_STATUS_SUCCESS) std::cout << "copy error" << std::endl, exit(30);
+                    status = cublasDcopy(handle, size_arr * size_arr, arr, 1, inter, 1);
+                    if(status != CUBLAS_STATUS_SUCCESS) std::cout << "copy error" << std::endl, exit(30);
 
-                status = cublasDaxpy(handle, size_arr * size_arr, &negOne, new_arr, 1, inter, 1);
-                if(status != CUBLAS_STATUS_SUCCESS) std::cout << "sum error" << std::endl, exit(40);
+                    status = cublasDaxpy(handle, size_arr * size_arr, &negOne, new_arr, 1, inter, 1);
+                    if(status != CUBLAS_STATUS_SUCCESS) std::cout << "sum error" << std::endl, exit(40);
                 
-                status = cublasIdamax(handle, size_arr * size_arr, inter, 1, &maxim);
-                if(status != CUBLAS_STATUS_SUCCESS) std::cout << "abs max error" << std::endl, exit(41);
+                    status = cublasIdamax(handle, size_arr * size_arr, inter, 1, &maxim);
+                    if(status != CUBLAS_STATUS_SUCCESS) std::cout << "abs max error" << std::endl, exit(41);
+                }
             }
+
+            #pragma acc update self(inter[maxim - 1]) wait
+            err = fabs(inter[maxim - 1]);
         }
 
-        #pragma acc update self(inter[maxim - 1]) wait
-        err = fabs(inter[maxim - 1]);
+        o++;
     }
 
     #ifdef NVPROF_
