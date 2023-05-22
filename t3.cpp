@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
         iterations++;
         #pragma acc parallel present(err)
         err = 0;
-        #pragma acc parallel loop collapse(1) present(a[0:size_arr * size_arr], na[0:size_arr * size_arr], err) reduction(max:err)
+        #pragma acc parallel loop present(a[0:size_arr * size_arr], na[0:size_arr * size_arr], err) reduction(max:err)
         for (int i = 0; i < (size_arr - 2) * (size_arr - 2); i++) {
             na[(i / (size_arr - 2) + 1) * size_arr + 1 + i % (size_arr - 2)] = (a[(i / (size_arr - 2) + 2) * size_arr + 1 + i % (size_arr - 2)] + a[(i / (size_arr - 2)) * size_arr + 1 + i % (size_arr - 2)] + a[(i / (size_arr - 2) + 1) * size_arr + 2 + i % (size_arr - 2)] + a[(i / (size_arr - 2) + 1) * size_arr + i % (size_arr - 2)]) / 4;
             na[(i % (size_arr - 2) + 1) * size_arr + 1 + i / (size_arr - 2)] = na[(i / (size_arr - 2) + 1) * size_arr + 1 + i % (size_arr - 2)];
@@ -108,13 +108,11 @@ int main(int argc, char *argv[]) {
                 {
 
                     status = cublasDcopy(handle, size_arr * size_arr, arr, 1, inter, 1);
-                    if(status != CUBLAS_STATUS_SUCCESS) std::cout << "copy error" << std::endl, exit(30);
 
                     status = cublasDaxpy(handle, size_arr * size_arr, &negOne, new_arr, 1, inter, 1);
-                    if(status != CUBLAS_STATUS_SUCCESS) std::cout << "sum error" << std::endl, exit(40);
                 
                     status = cublasIdamax(handle, size_arr * size_arr, inter, 1, &maxim);
-                    if(status != CUBLAS_STATUS_SUCCESS) std::cout << "abs max error" << std::endl, exit(41);
+
                 }
             }
 
