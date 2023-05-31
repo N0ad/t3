@@ -3,7 +3,7 @@
 #include <chrono>
 using namespace std;
 
-#ifdef OPENACC__
+#ifdef OPENACC_
 #include <openacc.h>
 #endif
 
@@ -12,6 +12,9 @@ using namespace std;
 #endif
 
 #include <cublas_v2.h>
+
+int n;
+#define at(arr, x, y) (arr[(x)*n+(y)]) 
 
 int max_iterations;
 double max_err;
@@ -22,6 +25,8 @@ int main(int argc, char *argv[]) {
     max_err = atof(argv[argc - 3]);
     size_arr = stoi(argv[argc - 2]);
     max_iterations = stoi(argv[argc - 1]);
+
+    n = size_arr;
 
     double *arr{new double[size_arr * size_arr]{}};
     double *new_arr{new double[size_arr * size_arr]{}};
@@ -86,17 +91,18 @@ int main(int argc, char *argv[]) {
         iterations++;
         #pragma acc parallel present(err)
         err = 0;
-        #pragma acc parallel loop present(a[0:size_arr * size_arr], na[0:size_arr * size_arr], err) reduction(max:err)
-        for (int i = 0; i < (size_arr - 2) * (size_arr - 2); i++) {
-            na[(i / (size_arr - 2) + 1) * size_arr + 1 + i % (size_arr - 2)] = (a[(i / (size_arr - 2) + 2) * size_arr + 1 + i % (size_arr - 2)] + a[(i / (size_arr - 2)) * size_arr + 1 + i % (size_arr - 2)] + a[(i / (size_arr - 2) + 1) * size_arr + 2 + i % (size_arr - 2)] + a[(i / (size_arr - 2) + 1) * size_arr + i % (size_arr - 2)]) / 4;
-            na[(i % (size_arr - 2) + 1) * size_arr + 1 + i / (size_arr - 2)] = na[(i / (size_arr - 2) + 1) * size_arr + 1 + i % (size_arr - 2)];
+        #pragma acc parallel loop collapse(2) present(a[0:size_arr * size_arr], na[0:size_arr * size_arr], err) async
+        for(int x = 1; x < n - 1; x++){
+            for(int y= 1; y < n - 1; y++){
+                at(na, x, y) = 0.25 * (at(a, x + 1, y) + at(a, x - 1, y) + at(a, x, y - 1) + at(a, x, y + 1));
+            }
         }
 
         swap = a;
         a = na;
         na = swap;
 
-        #ifdef OPENACC__
+        #ifdef OPENACC_
             acc_attach((void**)a);
             acc_attach((void**)na);
         #endif
